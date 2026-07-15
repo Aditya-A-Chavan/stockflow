@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Warehouse Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f5f5f0;--surface:#fff;--surface2:#f9f9f6;
+  --border:#e0dfd8;--border2:#cccbc4;
+  --text:#1a1a18;--text2:#6b6b66;--text3:#999992;
+  --accent:#2563eb;--accent-bg:#eff6ff;--accent-border:#bfdbfe;
+  --success:#16a34a;--success-bg:#f0fdf4;--success-border:#bbf7d0;
+  --warn:#d97706;--warn-bg:#fffbeb;--warn-border:#fde68a;
+  --danger:#dc2626;--danger-bg:#fef2f2;--danger-border:#fecaca;
+  --radius:10px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+h1{font-size:20px;font-weight:600}
+h2{font-size:17px;font-weight:600}
+h3{font-size:15px;font-weight:600}
+
+/* NAV */
+.nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 4px}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;border:none;background:none;color:var(--text2);font-size:11px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* PAGES */
+.page{display:none;padding:16px;max-width:600px;margin:0 auto;padding-bottom:80px}
+.page.active{display:block}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:500}
+.badge-blue{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
+.badge-green{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.badge-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}
+.badge-red{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+.badge-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-full{width:100%;justify-content:center}
+.btn-sm{padding:7px 13px;font-size:13px}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* INPUTS */
+input,select,textarea{width:100%;padding:10px 13px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.field{margin-bottom:12px}
+
+/* SCANNER */
+.scanner-wrap{position:relative;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:12px}
+#scanner-video{width:100%;height:100%;object-fit:cover;display:block}
+.scanner-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.scanner-box{width:70%;max-width:220px;aspect-ratio:3/1;border:2px solid #fff;border-radius:6px;position:relative}
+.scanner-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);animation:scan 2s linear infinite}
+@keyframes scan{0%{top:0}100%{top:calc(100% - 2px)}}
+.scanner-line{position:absolute;width:100%;height:1px;background:rgba(255,255,255,.3);top:50%}
+
+/* RESULT BOX */
+.result-box{padding:14px;border-radius:var(--radius);margin-bottom:12px}
+.result-found{background:var(--success-bg);border:1px solid var(--success-border)}
+.result-notfound{background:var(--warn-bg);border:1px solid var(--warn-border)}
+
+/* TABLE-LIKE ROWS */
+.data-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.data-row:last-child{border-bottom:none}
+.data-label{font-size:13px;color:var(--text2)}
+.data-val{font-size:14px;font-weight:500;text-align:right;max-width:60%}
+
+/* PROGRESS BAR */
+.progress-wrap{background:var(--surface2);border-radius:20px;height:8px;margin:6px 0}
+.progress-bar{height:8px;border-radius:20px;transition:width .3s;background:var(--accent)}
+.progress-bar.full{background:var(--success)}
+.progress-bar.warn{background:var(--warn)}
+
+/* TOAST */
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a18;color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;font-weight:500;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:flex-end}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 32px;width:100%;max-height:85vh;overflow-y:auto;max-width:600px;margin:0 auto}
+.modal-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+
+/* SECTION TITLE */
+.section-title{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin:20px 0 10px}
+.section-title:first-child{margin-top:0}
+
+/* PO ITEM ROW */
+.po-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.po-item:last-child{border-bottom:none}
+.po-item-info{flex:1;min-width:0}
+.po-item-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.po-item-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.po-item-qty{text-align:right;flex-shrink:0}
+.qty-big{font-size:16px;font-weight:600}
+.qty-sub{font-size:11px;color:var(--text2)}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap input{padding-left:38px}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3)}
+.search-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* TABS */
+.tabs{display:flex;background:var(--surface2);border-radius:var(--radius);padding:3px;margin-bottom:16px}
+.tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;border-radius:8px;border:none;background:none;color:var(--text2);cursor:pointer}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty svg{width:40px;height:40px;stroke:var(--text3);fill:none;stroke-width:1.5;margin:0 auto 12px;display:block}
+.empty p{font-size:14px}
+
+/* STOCK INDICATOR */
+.stock-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:12px}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: scan result / reserve -->
+<div class="modal-bg" id="modal-reserve">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2 id="modal-title" style="margin-bottom:14px">Reserve stock</h2>
+  <div id="modal-body"></div>
+  <div id="modal-actions" style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"></div>
+</div>
+</div>
+
+<!-- MODAL: dispatch confirm -->
+<div class="modal-bg" id="modal-dispatch">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2 style="margin-bottom:14px" id="dispatch-title">Confirm dispatch</h2>
+  <div id="dispatch-body"></div>
+  <div style="display:flex;gap:10px;margin-top:16px">
+    <button class="btn btn-full" onclick="closeModal('modal-dispatch')">Cancel</button>
+    <button class="btn btn-success btn-full" id="dispatch-confirm-btn">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Confirm dispatch
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="goto('home')" id="nav-home">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+  </button>
+  <button class="nav-btn" onclick="goto('scan')" id="nav-scan">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M17 17v4M14 21h4"/></svg>Scan
+  </button>
+  <button class="nav-btn" onclick="goto('orders')" id="nav-orders">
+    <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Orders
+  </button>
+  <button class="nav-btn" onclick="goto('stock')" id="nav-stock">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Stock
+  </button>
+  <button class="nav-btn" onclick="goto('import')" id="nav-import">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
+  </button>
+</nav>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h1>Warehouse</h1>
+    <span id="home-date" style="font-size:13px;color:var(--text2)"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div class="card" style="margin:0">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Total SKUs</div>
+      <div style="font-size:28px;font-weight:700;color:var(--text)" id="stat-skus">0</div>
+    </div>
+    <div class="card" style="margin:0">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Open orders</div>
+      <div style="font-size:28px;font-weight:700;color:var(--accent)" id="stat-orders">0</div>
+    </div>
+    <div class="card" style="margin:0">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Reserved</div>
+      <div style="font-size:28px;font-weight:700;color:var(--warn)" id="stat-reserved">0</div>
+    </div>
+    <div class="card" style="margin:0">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Ready to dispatch</div>
+      <div style="font-size:28px;font-weight:700;color:var(--success)" id="stat-ready">0</div>
+    </div>
+  </div>
+  <div class="section-title">Quick actions</div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button class="btn btn-full" style="justify-content:flex-start;gap:12px;padding:14px 16px" onclick="goto('scan')">
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M17 17v4M14 21h4"/></svg>
+      <span>Scan barcode to reserve or look up</span>
+    </button>
+    <button class="btn btn-full" style="justify-content:flex-start;gap:12px;padding:14px 16px" onclick="goto('orders');setDispatchTab()">
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--success);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>View orders ready for dispatch</span>
+    </button>
+  </div>
+  <div class="section-title">Recent activity</div>
+  <div id="home-activity">
+    <div class="empty"><p>No activity yet</p></div>
+  </div>
+</div>
+
+<!-- SCAN PAGE -->
+<div class="page" id="page-scan">
+  <h1 style="margin-bottom:16px">Scan barcode</h1>
+  <div class="tabs">
+    <button class="tab active" id="tab-camera" onclick="switchScanTab('camera')">Camera scan</button>
+    <button class="tab" id="tab-manual" onclick="switchScanTab('manual')">Enter manually</button>
+  </div>
+
+  <div id="scan-camera-section">
+    <div class="scanner-wrap" id="scanner-wrap">
+      <video id="scanner-video" autoplay playsinline muted></video>
+      <div class="scanner-overlay">
+        <div class="scanner-box"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="btn btn-primary btn-full" id="scan-start-btn" onclick="startScanner()">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>Start camera
+      </button>
+      <button class="btn btn-full" id="scan-stop-btn" onclick="stopScanner()" style="display:none">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>Stop
+      </button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);text-align:center">Point camera at SKU (e.g. 3606263) or EAN barcode on carton/item</p>
+  </div>
+
+  <div id="scan-manual-section" style="display:none">
+    <div class="field">
+      <label>SKU code or EAN number</label>
+      <input type="text" id="manual-barcode" placeholder="e.g. 3606263 or 8901234567890" inputmode="numeric">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="processBarcode(document.getElementById('manual-barcode').value.trim())">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Look up
+    </button>
+  </div>
+
+  <div id="scan-result" style="display:none;margin-top:16px"></div>
+</div>
+
+<!-- ORDERS PAGE -->
+<div class="page" id="page-orders">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h1>Sales orders</h1>
+    <button class="btn btn-sm btn-primary" onclick="showAddOrderModal()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New
+    </button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="order-tab-all" onclick="filterOrders('all')">All</button>
+    <button class="tab" id="order-tab-open" onclick="filterOrders('open')">Open</button>
+    <button class="tab" id="order-tab-ready" onclick="filterOrders('ready')">Ready</button>
+    <button class="tab" id="order-tab-done" onclick="filterOrders('done')">Dispatched</button>
+  </div>
+  <div id="orders-list"></div>
+</div>
+
+<!-- STOCK PAGE -->
+<div class="page" id="page-stock">
+  <h1 style="margin-bottom:14px">Stock</h1>
+  <div class="search-wrap">
+    <div class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+    <input type="text" id="stock-search" placeholder="Search SKU or name..." oninput="renderStock()">
+  </div>
+  <div id="stock-list"></div>
+</div>
+
+<!-- IMPORT PAGE -->
+<div class="page" id="page-import">
+  <h1 style="margin-bottom:8px">Import data</h1>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Upload CSVs exported from AlignBooks to load SKUs, stock, and sales orders.</p>
+
+  <div class="section-title">Step 1 — SKU master</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">CSV needs columns: <code>sku_code, item_name, hsn, uom</code> (and optionally <code>ean</code>)</p>
+    <input type="file" id="import-sku-file" accept=".csv" onchange="importSKUCSV(this)">
+    <div id="import-sku-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="section-title">Step 2 — Current stock</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">CSV needs columns: <code>sku_code, qty_on_hand</code> (and optionally <code>bin_location</code>)</p>
+    <input type="file" id="import-stock-file" accept=".csv" onchange="importStockCSV(this)">
+    <div id="import-stock-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="section-title">Step 3 — Sales orders</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">CSV needs columns: <code>order_no, party_name, sku_code, qty_ordered</code> (and optionally <code>due_date</code>)</p>
+    <input type="file" id="import-order-file" accept=".csv" onchange="importOrderCSV(this)">
+    <div id="import-order-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="section-title">Or add stock manually</div>
+  <div class="card">
+    <div class="field">
+      <label>SKU code</label>
+      <input type="text" id="add-sku-code" placeholder="e.g. 3606263">
+    </div>
+    <div class="field">
+      <label>Item name</label>
+      <input type="text" id="add-sku-name" placeholder="e.g. Basketball Senior 10x12">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="field">
+      <div>
+        <label>Qty on hand</label>
+        <input type="number" id="add-sku-qty" placeholder="0" min="0">
+      </div>
+      <div>
+        <label>Bin location</label>
+        <input type="text" id="add-sku-bin" placeholder="A-1-B-2">
+      </div>
+    </div>
+    <div class="field">
+      <label>EAN / barcode (optional)</label>
+      <input type="text" id="add-sku-ean" placeholder="13-digit EAN">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addSKUManual()">Add SKU to stock</button>
+  </div>
+
+  <div class="section-title">Danger zone</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Clear all data and start fresh.</p>
+    <button class="btn btn-danger btn-full" onclick="clearAllData()">Clear all data</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────────────────────
+const DB = {
+  get skus(){ return JSON.parse(localStorage.getItem('wh_skus')||'{}') },
+  set skus(v){ localStorage.setItem('wh_skus',JSON.stringify(v)) },
+  get stock(){ return JSON.parse(localStorage.getItem('wh_stock')||'{}') },
+  set stock(v){ localStorage.setItem('wh_stock',JSON.stringify(v)) },
+  get orders(){ return JSON.parse(localStorage.getItem('wh_orders')||'[]') },
+  set orders(v){ localStorage.setItem('wh_orders',JSON.stringify(v)) },
+  get activity(){ return JSON.parse(localStorage.getItem('wh_activity')||'[]') },
+  set activity(v){ localStorage.setItem('wh_activity',JSON.stringify(v)) },
+}
+
+let scannerActive=false, scanStream=null, scanDebounce=null
+
+// ─── NAV ────────────────────────────────────────────────────────────────────
+function goto(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'))
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'))
+  document.getElementById('page-'+page).classList.add('active')
+  document.getElementById('nav-'+page).classList.add('active')
+  stopScanner()
+  if(page==='home') renderHome()
+  if(page==='orders') renderOrders()
+  if(page==='stock') renderStock()
+}
+
+function setDispatchTab(){ filterOrders('ready') }
+
+// ─── TOAST ──────────────────────────────────────────────────────────────────
+function toast(msg,dur=2500){
+  const t=document.getElementById('toast')
+  t.textContent=msg; t.classList.add('show')
+  setTimeout(()=>t.classList.remove('show'),dur)
+}
+
+// ─── MODALS ─────────────────────────────────────────────────────────────────
+function closeModal(id){ document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}))
+
+// ─── ACTIVITY LOG ───────────────────────────────────────────────────────────
+function logActivity(msg){
+  const a=DB.activity
+  a.unshift({msg,time:Date.now()})
+  DB.activity=a.slice(0,50)
+}
+
+function timeAgo(ts){
+  const s=Math.floor((Date.now()-ts)/1000)
+  if(s<60) return 'just now'
+  if(s<3600) return Math.floor(s/60)+'m ago'
+  if(s<86400) return Math.floor(s/3600)+'h ago'
+  return Math.floor(s/86400)+'d ago'
+}
+
+// ─── HOME ────────────────────────────────────────────────────────────────────
+function renderHome(){
+  const skus=DB.skus, stock=DB.stock, orders=DB.orders
+  document.getElementById('stat-skus').textContent=Object.keys(skus).length
+  const open=orders.filter(o=>o.status!=='dispatched')
+  document.getElementById('stat-orders').textContent=open.length
+  // count reserved items
+  let res=0; Object.values(stock).forEach(s=>{ res+=s.reserved||0 })
+  document.getElementById('stat-reserved').textContent=res
+  // ready = orders where all items fully reserved
+  const ready=orders.filter(o=>o.status==='ready').length
+  document.getElementById('stat-ready').textContent=ready
+  // date
+  document.getElementById('home-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})
+  // activity
+  const acts=DB.activity
+  const el=document.getElementById('home-activity')
+  if(!acts.length){ el.innerHTML='<div class="empty"><p>No activity yet</p></div>'; return }
+  el.innerHTML=acts.slice(0,8).map(a=>`
+    <div class="data-row">
+      <span style="font-size:14px">${a.msg}</span>
+      <span style="font-size:12px;color:var(--text3);flex-shrink:0;margin-left:10px">${timeAgo(a.time)}</span>
+    </div>`).join('')
+}
+
+// ─── SCANNER ─────────────────────────────────────────────────────────────────
+async function startScanner(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}}})
+    scanStream=stream
+    const v=document.getElementById('scanner-video')
+    v.srcObject=stream
+    scannerActive=true
+    document.getElementById('scan-start-btn').style.display='none'
+    document.getElementById('scan-stop-btn').style.display='flex'
+    startQuagga()
+  }catch(e){
+    toast('Camera not available — use manual entry')
+    switchScanTab('manual')
+  }
+}
+
+function stopScanner(){
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null }
+  if(typeof Quagga!=='undefined'){ try{Quagga.stop()}catch(e){} }
+  scannerActive=false
+  document.getElementById('scan-start-btn').style.display='flex'
+  document.getElementById('scan-stop-btn').style.display='none'
+}
+
+function startQuagga(){
+  Quagga.init({
+    inputStream:{type:'LiveStream',target:document.getElementById('scanner-video'),constraints:{facingMode:'environment'}},
+    decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader','upc_e_reader']},
+    locate:true, numOfWorkers:2
+  },err=>{
+    if(err){ toast('Scanner init failed — use manual entry'); return }
+    Quagga.start()
+    Quagga.onDetected(data=>{
+      const code=data.codeResult.code
+      if(!code) return
+      clearTimeout(scanDebounce)
+      scanDebounce=setTimeout(()=>{
+        stopScanner()
+        processBarcode(code)
+      },300)
+    })
+  })
+}
+
+function switchScanTab(t){
+  document.getElementById('tab-camera').classList.toggle('active',t==='camera')
+  document.getElementById('tab-manual').classList.toggle('active',t==='manual')
+  document.getElementById('scan-camera-section').style.display=t==='camera'?'block':'none'
+  document.getElementById('scan-manual-section').style.display=t==='manual'?'block':'none'
+  if(t!=='camera') stopScanner()
+}
+
+// ─── BARCODE LOOKUP ──────────────────────────────────────────────────────────
+function processBarcode(code){
+  code=String(code).trim()
+  if(!code){ toast('No barcode entered'); return }
+  const skus=DB.skus, stock=DB.stock
+
+  // look up by SKU code or EAN
+  let sku=skus[code]
+  if(!sku){
+    // try EAN lookup
+    sku=Object.values(skus).find(s=>s.ean===code)
+    if(sku) code=sku.sku_code
+  }
+
+  const el=document.getElementById('scan-result')
+  el.style.display='block'
+
+  if(!sku){
+    el.innerHTML=`
+      <div class="result-box result-notfound">
+        <div style="font-size:15px;font-weight:600;color:var(--warn);margin-bottom:6px">SKU not found</div>
+        <div style="font-size:14px;color:var(--text2)">Barcode: <strong>${code}</strong></div>
+        <div style="font-size:13px;color:var(--text2);margin-top:8px">This barcode isn't in your SKU master. Add it on the Import tab.</div>
+      </div>`
+    return
+  }
+
+  const s=stock[code]||{qty:0,reserved:0,bin:''}
+  const available=Math.max(0,(s.qty||0)-(s.reserved||0))
+
+  // find open orders needing this SKU
+  const orders=DB.orders
+  const pending=orders.filter(o=>o.status!=='dispatched').map(o=>({
+    ...o,
+    items:o.items.filter(i=>i.sku===code&&i.qty_reserved<i.qty_ordered)
+  })).filter(o=>o.items.length)
+
+  el.innerHTML=`
+    <div class="result-box result-found">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">${sku.item_name}</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">SKU: ${code}${sku.ean?' · EAN: '+sku.ean:''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700">${s.qty||0}</div>
+          <div style="font-size:11px;color:var(--text2)">On hand</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--warn)">${s.reserved||0}</div>
+          <div style="font-size:11px;color:var(--text2)">Reserved</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--success)">${available}</div>
+          <div style="font-size:11px;color:var(--text2)">Available</div>
+        </div>
+      </div>
+      ${s.bin?`<div style="font-size:13px;color:var(--text2)">📦 Location: <strong>${s.bin}</strong></div>`:''}
+    </div>
+    ${pending.length?`
+      <div class="section-title" style="margin-top:14px">Open orders needing this SKU</div>
+      ${pending.map(o=>o.items.map(i=>`
+        <div class="card" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="font-weight:600">${o.order_no}</div>
+              <div style="font-size:13px;color:var(--text2)">${o.party_name}</div>
+            </div>
+            <span class="badge ${o.status==='ready'?'badge-green':'badge-warn'}">${o.status}</span>
+          </div>
+          <div style="font-size:14px;margin-bottom:10px">Need: <strong>${i.qty_ordered-i.qty_reserved}</strong> more (${i.qty_reserved}/${i.qty_ordered} reserved)</div>
+          ${available>0?`<button class="btn btn-primary btn-sm" onclick='showReserveModal("${code}","${o.order_no}",${i.qty_ordered-i.qty_reserved},${available})'>Reserve stock</button>`:'<span style="font-size:13px;color:var(--danger)">No available stock</span>'}
+        </div>`).join('')).join('')}
+    `:`<div class="card" style="margin-top:12px"><div style="font-size:14px;color:var(--text2)">No open orders pending for this SKU.</div></div>`}
+  `
+}
+
+// ─── RESERVE MODAL ────────────────────────────────────────────────────────────
+function showReserveModal(skuCode, orderNo, needed, available){
+  const skus=DB.skus, sku=skus[skuCode]
+  document.getElementById('modal-title').textContent='Reserve stock'
+  document.getElementById('modal-body').innerHTML=`
+    <div class="data-row"><span class="data-label">Item</span><span class="data-val">${sku?sku.item_name:skuCode}</span></div>
+    <div class="data-row"><span class="data-label">Order</span><span class="data-val">${orderNo}</span></div>
+    <div class="data-row"><span class="data-label">Still needed</span><span class="data-val">${needed}</span></div>
+    <div class="data-row" style="border:none"><span class="data-label">Available</span><span class="data-val" style="color:var(--success)">${available}</span></div>
+    <div class="field" style="margin-top:14px">
+      <label>Qty to reserve</label>
+      <input type="number" id="reserve-qty" value="${Math.min(needed,available)}" min="1" max="${Math.min(needed,available)}">
+    </div>`
+  document.getElementById('modal-actions').innerHTML=`
+    <button class="btn btn-full" onclick="closeModal('modal-reserve')">Cancel</button>
+    <button class="btn btn-primary btn-full" onclick="confirmReserve('${skuCode}','${orderNo}')">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg>Reserve
+    </button>`
+  document.getElementById('modal-reserve').classList.add('open')
+}
+
+function confirmReserve(skuCode, orderNo){
+  const qty=parseInt(document.getElementById('reserve-qty').value)||0
+  if(qty<=0){ toast('Enter a valid qty'); return }
+
+  const stock=DB.stock
+  const s=stock[skuCode]||{qty:0,reserved:0}
+  const available=Math.max(0,s.qty-(s.reserved||0))
+  if(qty>available){ toast('Not enough available stock'); return }
+
+  s.reserved=(s.reserved||0)+qty
+  stock[skuCode]=s
+  DB.stock=stock
+
+  // update order item
+  const orders=DB.orders
+  const order=orders.find(o=>o.order_no===orderNo)
+  if(order){
+    const item=order.items.find(i=>i.sku===skuCode)
+    if(item){ item.qty_reserved=(item.qty_reserved||0)+qty }
+    // check if fully reserved
+    const fullyReserved=order.items.every(i=>(i.qty_reserved||0)>=i.qty_ordered)
+    if(fullyReserved) order.status='ready'
+    else order.status='partial'
+    DB.orders=orders
+  }
+
+  logActivity(`Reserved ${qty}× ${skuCode} for order ${orderNo}`)
+  closeModal('modal-reserve')
+  toast(`✓ Reserved ${qty} units for ${orderNo}`)
+
+  // refresh scan result
+  processBarcode(skuCode)
+  renderHome()
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────────────────────
+let ordersFilter='all'
+function filterOrders(f){
+  ordersFilter=f
+  ;['all','open','ready','done'].forEach(t=>{
+    document.getElementById('order-tab-'+t).classList.toggle('active',t===f)
+  })
+  renderOrders()
+}
+
+function renderOrders(){
+  const orders=DB.orders
+  let list=orders
+  if(ordersFilter==='open') list=orders.filter(o=>o.status==='open'||o.status==='partial')
+  if(ordersFilter==='ready') list=orders.filter(o=>o.status==='ready')
+  if(ordersFilter==='done') list=orders.filter(o=>o.status==='dispatched')
+
+  const el=document.getElementById('orders-list')
+  if(!list.length){
+    el.innerHTML='<div class="empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><p>No orders here</p></div>'
+    return
+  }
+
+  el.innerHTML=list.map(o=>{
+    const totalItems=o.items.reduce((s,i)=>s+i.qty_ordered,0)
+    const reserved=o.items.reduce((s,i)=>s+(i.qty_reserved||0),0)
+    const pct=totalItems>0?Math.round(reserved/totalItems*100):0
+    const statusBadge={open:'badge-warn',partial:'badge-blue',ready:'badge-green',dispatched:'badge-gray'}[o.status]||'badge-gray'
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div style="font-weight:600;font-size:16px">${o.order_no}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px">${o.party_name}${o.due_date?' · Due: '+o.due_date:''}</div>
+        </div>
+        <span class="badge ${statusBadge}">${o.status}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:6px">${reserved}/${totalItems} units reserved</div>
+      <div class="progress-wrap"><div class="progress-bar${pct>=100?' full':pct>50?' ':'  warn'}" style="width:${pct}%"></div></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="showOrderDetail('${o.order_no}')">View items</button>
+        ${o.status==='ready'?`<button class="btn btn-sm btn-success" onclick="showDispatchModal('${o.order_no}')">
+          <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Dispatch
+        </button>`:''}
+      </div>
+    </div>`
+  }).join('')
+}
+
+function showOrderDetail(orderNo){
+  const orders=DB.orders
+  const o=orders.find(x=>x.order_no===orderNo)
+  if(!o) return
+  const skus=DB.skus
+  document.getElementById('modal-title').textContent=orderNo+' — '+o.party_name
+  document.getElementById('modal-body').innerHTML=o.items.map(i=>{
+    const sku=skus[i.sku]
+    const pct=Math.round((i.qty_reserved||0)/i.qty_ordered*100)
+    const stock=DB.stock[i.sku]||{qty:0,reserved:0}
+    const avail=Math.max(0,(stock.qty||0)-(stock.reserved||0))
+    return `
+    <div class="po-item">
+      <div class="po-item-info">
+        <div class="po-item-name">${sku?sku.item_name:i.sku}</div>
+        <div class="po-item-sub">SKU: ${i.sku} · Avail: ${avail}</div>
+        <div class="progress-wrap" style="margin-top:6px"><div class="progress-bar${pct>=100?' full':''}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="po-item-qty">
+        <div class="qty-big" style="color:${pct>=100?'var(--success)':'var(--warn)'}">${i.qty_reserved||0}</div>
+        <div class="qty-sub">of ${i.qty_ordered}</div>
+      </div>
+    </div>`
+  }).join('')
+  document.getElementById('modal-actions').innerHTML=`
+    ${o.status==='ready'?`<button class="btn btn-success btn-full" onclick="closeModal('modal-reserve');showDispatchModal('${orderNo}')">Dispatch this order</button>`:''}
+    <button class="btn btn-full" onclick="closeModal('modal-reserve')">Close</button>`
+  document.getElementById('modal-reserve').classList.add('open')
+}
+
+function showDispatchModal(orderNo){
+  const orders=DB.orders
+  const o=orders.find(x=>x.order_no===orderNo)
+  if(!o) return
+  const skus=DB.skus
+  document.getElementById('dispatch-title').textContent='Dispatch — '+orderNo
+  document.getElementById('dispatch-body').innerHTML=`
+    <div style="font-size:14px;color:var(--text2);margin-bottom:12px">Confirm dispatch to <strong>${o.party_name}</strong>${o.due_date?' · Due '+o.due_date:''}:</div>
+    ${o.items.map(i=>{
+      const sku=skus[i.sku]
+      return `<div class="data-row"><span class="data-label">${sku?sku.item_name:i.sku}</span><span class="data-val">${i.qty_reserved||i.qty_ordered} pcs</span></div>`
+    }).join('')}
+    <div style="margin-top:12px;font-size:13px;color:var(--warn)">This will release stock reservations and mark the order as dispatched.</div>`
+  document.getElementById('dispatch-confirm-btn').onclick=()=>confirmDispatch(orderNo)
+  document.getElementById('modal-dispatch').classList.add('open')
+}
+
+function confirmDispatch(orderNo){
+  const orders=DB.orders
+  const o=orders.find(x=>x.order_no===orderNo)
+  if(!o){ toast('Order not found'); return }
+  const stock=DB.stock
+  o.items.forEach(i=>{
+    const s=stock[i.sku]||{qty:0,reserved:0}
+    const rel=i.qty_reserved||0
+    s.qty=Math.max(0,(s.qty||0)-rel)
+    s.reserved=Math.max(0,(s.reserved||0)-rel)
+    stock[i.sku]=s
+    i.qty_reserved=0
+  })
+  o.status='dispatched'
+  o.dispatched_at=Date.now()
+  DB.orders=orders
+  DB.stock=stock
+  logActivity(`Dispatched order ${orderNo} to ${o.party_name}`)
+  closeModal('modal-dispatch')
+  toast('✓ Order dispatched!')
+  renderOrders()
+  renderHome()
+}
+
+// ─── ADD ORDER MODAL ─────────────────────────────────────────────────────────
+function showAddOrderModal(){
+  document.getElementById('modal-title').textContent='New sales order'
+  document.getElementById('modal-body').innerHTML=`
+    <div class="field">
+      <label>Order no (from AlignBooks)</label>
+      <input type="text" id="new-order-no" placeholder="e.g. PE/25-26/0269">
+    </div>
+    <div class="field">
+      <label>Party / customer name</label>
+      <input type="text" id="new-order-party" placeholder="e.g. DUA LIMA RETAIL">
+    </div>
+    <div class="field">
+      <label>Due date (optional)</label>
+      <input type="date" id="new-order-due">
+    </div>
+    <div class="section-title">Items (add one by one)</div>
+    <div id="new-order-items"></div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px">
+      <input type="text" id="new-item-sku" placeholder="SKU code">
+      <input type="number" id="new-item-qty" placeholder="Qty" min="1">
+    </div>
+    <button class="btn btn-sm btn-full" onclick="addItemToNewOrder()">+ Add item</button>`
+  document.getElementById('modal-actions').innerHTML=`
+    <button class="btn btn-full" onclick="closeModal('modal-reserve')">Cancel</button>
+    <button class="btn btn-primary btn-full" onclick="saveNewOrder()">Save order</button>`
+  window._newOrderItems=[]
+  document.getElementById('modal-reserve').classList.add('open')
+}
+
+function addItemToNewOrder(){
+  const sku=document.getElementById('new-item-sku').value.trim()
+  const qty=parseInt(document.getElementById('new-item-qty').value)||0
+  if(!sku||!qty){ toast('Enter SKU and qty'); return }
+  window._newOrderItems=window._newOrderItems||[]
+  const existing=window._newOrderItems.find(i=>i.sku===sku)
+  if(existing){ existing.qty_ordered+=qty }
+  else{ window._newOrderItems.push({sku,qty_ordered:qty,qty_reserved:0}) }
+  const skus=DB.skus
+  document.getElementById('new-order-items').innerHTML=window._newOrderItems.map(i=>`
+    <div class="data-row"><span class="data-label">${(skus[i.sku]||{}).item_name||i.sku}</span><span class="data-val">${i.qty_ordered} pcs</span></div>`).join('')
+  document.getElementById('new-item-sku').value=''
+  document.getElementById('new-item-qty').value=''
+  document.getElementById('new-item-sku').focus()
+}
+
+function saveNewOrder(){
+  const no=document.getElementById('new-order-no').value.trim()
+  const party=document.getElementById('new-order-party').value.trim()
+  const due=document.getElementById('new-order-due').value
+  if(!no||!party){ toast('Enter order no and party name'); return }
+  if(!window._newOrderItems||!window._newOrderItems.length){ toast('Add at least one item'); return }
+  const orders=DB.orders
+  if(orders.find(o=>o.order_no===no)){ toast('Order no already exists'); return }
+  orders.unshift({order_no:no,party_name:party,due_date:due||'',status:'open',items:window._newOrderItems,created_at:Date.now()})
+  DB.orders=orders
+  logActivity(`New order ${no} (${party}) added`)
+  closeModal('modal-reserve')
+  toast('✓ Order added')
+  renderOrders()
+  renderHome()
+}
+
+// ─── STOCK ───────────────────────────────────────────────────────────────────
+function renderStock(){
+  const skus=DB.skus, stock=DB.stock
+  const q=(document.getElementById('stock-search').value||'').toLowerCase()
+  const el=document.getElementById('stock-list')
+  const keys=Object.keys(skus).filter(k=>{
+    if(!q) return true
+    return k.toLowerCase().includes(q)||(skus[k].item_name||'').toLowerCase().includes(q)
+  })
+  if(!keys.length){
+    el.innerHTML='<div class="empty"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><p>No SKUs yet. Import or add on the Import tab.</p></div>'
+    return
+  }
+  el.innerHTML=keys.map(k=>{
+    const sku=skus[k], s=stock[k]||{qty:0,reserved:0}
+    const avail=Math.max(0,(s.qty||0)-(s.reserved||0))
+    const chip=avail===0?'background:var(--danger-bg);color:var(--danger)':avail<10?'background:var(--warn-bg);color:var(--warn)':'background:var(--success-bg);color:var(--success)'
+    return `
+    <div class="card" style="padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sku.item_name||k}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">SKU: ${k}${s.bin?' · '+s.bin:''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="stock-chip" style="${chip}">${avail} avail</span>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">${s.reserved||0} reserved</div>
+        </div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// ─── CSV IMPORT ──────────────────────────────────────────────────────────────
+function parseCSV(text){
+  const lines=text.trim().split('\n')
+  if(!lines.length) return []
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase())
+  return lines.slice(1).filter(l=>l.trim()).map(l=>{
+    const vals=l.split(',').map(v=>v.trim().replace(/"/g,''))
+    const obj={}
+    headers.forEach((h,i)=>obj[h]=vals[i]||'')
+    return obj
+  })
+}
+
+function importSKUCSV(input){
+  const file=input.files[0]; if(!file) return
+  const reader=new FileReader()
+  reader.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result)
+      const skus=DB.skus
+      let count=0
+      rows.forEach(r=>{
+        const code=(r.sku_code||r.sku||'').trim()
+        if(!code) return
+        skus[code]={sku_code:code,item_name:r.item_name||r.name||code,hsn:r.hsn||'',uom:r.uom||'PCS',ean:r.ean||''}
+        count++
+      })
+      DB.skus=skus
+      document.getElementById('import-sku-result').innerHTML=`<span class="badge badge-green">✓ ${count} SKUs imported</span>`
+      logActivity(`Imported ${count} SKUs from CSV`)
+      toast(`✓ ${count} SKUs imported`)
+    }catch(err){ document.getElementById('import-sku-result').innerHTML=`<span class="badge badge-red">Error: ${err.message}</span>` }
+  }
+  reader.readAsText(file)
+}
+
+function importStockCSV(input){
+  const file=input.files[0]; if(!file) return
+  const reader=new FileReader()
+  reader.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result)
+      const stock=DB.stock
+      let count=0
+      rows.forEach(r=>{
+        const code=(r.sku_code||r.sku||'').trim()
+        if(!code) return
+        const existing=stock[code]||{reserved:0}
+        stock[code]={...existing,qty:parseInt(r.qty_on_hand||r.qty||0)||0,bin:r.bin_location||r.bin||existing.bin||''}
+        count++
+      })
+      DB.stock=stock
+      document.getElementById('import-stock-result').innerHTML=`<span class="badge badge-green">✓ ${count} stock entries updated</span>`
+      logActivity(`Updated stock for ${count} SKUs from CSV`)
+      toast(`✓ Stock updated for ${count} SKUs`)
+    }catch(err){ document.getElementById('import-stock-result').innerHTML=`<span class="badge badge-red">Error: ${err.message}</span>` }
+  }
+  reader.readAsText(file)
+}
+
+function importOrderCSV(input){
+  const file=input.files[0]; if(!file) return
+  const reader=new FileReader()
+  reader.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result)
+      const orders=DB.orders
+      let added=0,skipped=0
+      // group by order_no
+      const grouped={}
+      rows.forEach(r=>{
+        const no=(r.order_no||r.vno||'').trim()
+        if(!no) return
+        if(!grouped[no]) grouped[no]={order_no:no,party_name:r.party_name||r.party||'',due_date:r.due_date||'',status:'open',items:[],created_at:Date.now()}
+        const sku=(r.sku_code||r.sku||'').trim()
+        if(sku){
+          const existing=grouped[no].items.find(i=>i.sku===sku)
+          if(existing) existing.qty_ordered+=parseInt(r.qty_ordered||r.qty||0)||0
+          else grouped[no].items.push({sku,qty_ordered:parseInt(r.qty_ordered||r.qty||0)||0,qty_reserved:0})
+        }
+      })
+      Object.values(grouped).forEach(o=>{
+        if(orders.find(x=>x.order_no===o.order_no)){ skipped++; return }
+        orders.unshift(o); added++
+      })
+      DB.orders=orders
+      document.getElementById('import-order-result').innerHTML=`<span class="badge badge-green">✓ ${added} orders added${skipped?`, ${skipped} skipped (already exist)`:''}</span>`
+      logActivity(`Imported ${added} orders from CSV`)
+      toast(`✓ ${added} orders imported`)
+    }catch(err){ document.getElementById('import-order-result').innerHTML=`<span class="badge badge-red">Error: ${err.message}</span>` }
+  }
+  reader.readAsText(file)
+}
+
+function addSKUManual(){
+  const code=document.getElementById('add-sku-code').value.trim()
+  const name=document.getElementById('add-sku-name').value.trim()
+  const qty=parseInt(document.getElementById('add-sku-qty').value)||0
+  const bin=document.getElementById('add-sku-bin').value.trim()
+  const ean=document.getElementById('add-sku-ean').value.trim()
+  if(!code||!name){ toast('Enter SKU code and name'); return }
+  const skus=DB.skus
+  skus[code]={sku_code:code,item_name:name,hsn:'',uom:'PCS',ean}
+  DB.skus=skus
+  const stock=DB.stock
+  stock[code]={qty,bin,reserved:(stock[code]||{}).reserved||0}
+  DB.stock=stock
+  ;['add-sku-code','add-sku-name','add-sku-qty','add-sku-bin','add-sku-ean'].forEach(id=>document.getElementById(id).value='')
+  logActivity(`Added SKU ${code} — ${name} (qty: ${qty})`)
+  toast(`✓ ${code} added`)
+}
+
+function clearAllData(){
+  if(!confirm('Clear ALL data? This cannot be undone.')) return
+  localStorage.removeItem('wh_skus')
+  localStorage.removeItem('wh_stock')
+  localStorage.removeItem('wh_orders')
+  localStorage.removeItem('wh_activity')
+  toast('All data cleared')
+  renderHome()
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+renderHome()
+</script>
+</body>
+</html>
