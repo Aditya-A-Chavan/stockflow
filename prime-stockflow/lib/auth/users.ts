@@ -1,5 +1,3 @@
-import bcrypt from "bcryptjs";
-
 export type AppUsers = Record<string, string>;
 
 export function parseAppUsers(): AppUsers {
@@ -24,7 +22,7 @@ export async function verifyCredentials(
   password: string
 ): Promise<boolean> {
   const users = parseAppUsers();
-  const hash = users[username];
-  if (!hash) return false;
-  return bcrypt.compare(password, hash);
+  const expected = users[username];
+  if (!expected) return false;
+  return expected === password;
 }

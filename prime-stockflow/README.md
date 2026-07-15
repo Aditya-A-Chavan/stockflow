@@ -41,19 +41,16 @@ cp .env.example .env.local
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (Project Settings → API) |
 | `SESSION_SECRET` | Random string, at least 32 characters |
-| `APP_USERS` | JSON map of username → bcrypt hash |
+| `APP_USERS` | JSON map of username → plaintext password |
 
-Generate a password hash:
-
-```bash
-npm run hash-password -- yourpassword
-```
-
-Paste the output into `.env.local`:
+Set your users in `.env.local`:
 
 ```
-APP_USERS={"alice":"$2b$10$..."}
+APP_USERS={"alice":"her-password"}
 ```
+
+Avoid `$` in passwords — Next.js expands `$VAR` references in env files. If you must
+use one, escape it as `\$`.
 
 ### 3. Run database migration
 
@@ -85,7 +82,6 @@ Open [http://localhost:3000](http://localhost:3000) and sign in.
 | `npm run build` | Production build |
 | `npm run start` | Run production server |
 | `npm run test` | Run unit tests (domain logic) |
-| `npm run hash-password -- <pw>` | Generate bcrypt hash for `APP_USERS` |
 
 ## Deploy to Vercel
 
