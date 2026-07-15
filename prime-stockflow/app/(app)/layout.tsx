@@ -1,6 +1,6 @@
 import { BottomNav } from "@/components/nav/BottomNav";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import { getSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session-server";
 
 export default async function AppLayout({
   children,

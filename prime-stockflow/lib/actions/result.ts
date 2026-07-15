@@ -20,7 +20,7 @@ export function unauthorized(): ActionResult<never> {
 export async function withAuth<T>(
   fn: (username: string) => Promise<ActionResult<T>>
 ): Promise<ActionResult<T>> {
-  const { getSession } = await import("@/lib/auth/session");
+  const { getSession } = await import("@/lib/auth/session-server");
   const session = await getSession();
   if (!session) return unauthorized();
   return fn(session.username);
